@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>PG County Animal Shelter – Interaction/Walkthrough Booking (Demo)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 24px auto; padding: 0 12px; }
+    form { display: grid; gap: 12px; }
+    label { display: grid; gap: 6px; }
+    input, select, textarea { padding: 10px; border: 1px solid #ccc; border-radius: 6px; }
+    button { padding: 12px 14px; border: 0; border-radius: 8px; cursor: pointer; }
+    .ok { background: #e8fff1; border: 1px solid #b6f1cd; padding: 12px; border-radius: 8px; }
+    .err { background: #fff0f0; border: 1px solid #f1b6b6; padding: 12px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Schedule an Interaction/Walkthrough (Demo)</h1>
+  <p>Listings are mirrored from <a href="https://24petconnect.com" target="_blank" rel="noopener">24petconnect.com</a> for demo purposes.</p>
+
+  <form id="f">
+    <label>Appointment type
+      <select name="appointment_type" required>
+        <option value="interaction">Interaction</option>
+        <option value="walkthrough">Walkthrough</option>
+        <option value="bonded_pair">Bonded Pair</option>
+        <option value="behavior">Behavior</option>
+      </select>
+    </label>
+
+    <label>Choose animal
+      <select name="animals_of_interest" id="animalSelect">
+        <option value="">Undecided</option>
+      </select>
+    </label>
+
+    <label>Start time (local ISO, e.g., 2025-10-08T15:00)
+      <input name="start" type="datetime-local" required />
+    </label>
+
+    <label>Timezone (IANA)
+      <input name="timezone" value="America/New_York" required />
+    </label>
+
+    <label>First name <input name="first_name" required /></label>
+    <label>Last name <input name="last_name" required /></label>
+    <label>Email <input name="email" type="email" required /></label>
+    <label>Phone <input name="phone" required /></label>
+
+    <label>Notes (optional)
+      <textarea name="notes" placeholder="Allergies, accessibility, kids attending, etc."></textarea>
+    </label>
+
+    <button type="submit">Request Appointment</button>
+  </form>
+
+  <div id="result"></div>
+
+  <script>
+    const WEBHOOK = "YOUR_N8N_WEBHOOK_URL"; // <-- replace me
+
+    // Populate animal dropdown from local JSON
+    fetch('listings.json').then(r => r.json()).then(data => {
+      const sel = document.getElementById('animalSelect');
+      data.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = `${a.name} (${a.id})`;
+        opt.textContent = `${a.name} (${a.species}, ${a.age}) – ${a.id}`;
+        sel.appendChild(opt);
+      });
+    });
+
+    document.getElementById('f').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const payload = {
+        appointment_type: fd.get('appointment_type'),
+        animals_of_interest: fd.get('animals_of_interest') || 'Undecided',
+        start: new Date(fd.get('start')).toISOString().slice(0,16)+":00",
+        timezone: fd.get('timezone'),
+        notes: fd.get('notes') || '',
+        contact: {
+          first_name: fd.get('first_name'),
+          last_name: fd.get('last_name'),
+          email: fd.get('email'),
+          phone: fd.get('phone')
+        },
+        // sensible defaults
+        max_advance_days: 10,
+        min_lead_hours: 2,
+        same_day_close_cutoff_hours: 2
+      };
+
+      const resEl = document.getElementById('result');
+      resEl.innerHTML = 'Submitting...';
+
+      try {
+        const r = await fetch(WEBHOOK, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await r.json();
+        if (r.ok && data.valid) {
+          resEl.innerHTML = `<div class="ok"><strong>Confirmed:</strong><br>${data.booking_note.replace(/\n/g,'<br>')}<br><br><em>Listings:</em> <a href="${data.shelter_url}" target="_blank">${data.shelter_url}</a></div>`;
+        } else {
+          const reasons = (data.reasons || ['Please choose another time.']).map(s=>`• ${s}`).join('<br>');
+          resEl.innerHTML = `<div class="err"><strong>Couldn’t book:</strong><br>${reasons}</div>`;
+        }
+      } catch (err) {
+        resEl.innerHTML = `<div class="err">Network error. Try again later.</div>`;
+      }
+    });
+  </script>
+</body>
+</html>
