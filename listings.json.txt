@@ -1,6 +1,0 @@
-[
-  { "id": "A123", "name": "Kane", "species": "Dog", "age": "7" },
-  { "id": "A124", "name": "Maximus", "species": "Dog", "age": "7" },
-  { "id": "C201", "name": "Dorothy", "species": "Cat", "age": "13" }
-]
-
