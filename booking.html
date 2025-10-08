@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>PG County Animal Shelter – Interaction/Walkthrough Booking (Demo)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: sans-serif; max-width: 700px; margin: 30px auto; padding: 10px; }
+    form { display: grid; gap: 12px; }
+    input, select, textarea { padding: 8px; border: 1px solid #ccc; border-radius: 5px; }
+    button { padding: 10px; border: none; background: #4CAF50; color: white; border-radius: 5px; cursor: pointer; }
+    .ok { background: #e6ffed; padding: 10px; border: 1px solid #8bc34a; border-radius: 5px; }
+    .err { background: #ffeaea; padding: 10px; border: 1px solid #f44336; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <h1>Schedule an Interaction or Walkthrough</h1>
+  <p>This demo uses <a href=\"https://24petconnect.com\" target=\"_blank\">24petconnect.com</a> listings for reference.</p>
+
+  <form id=\"form\">
+    <label>Appointment Type:
+      <select name=\"appointment_type\">
+        <option value=\"interaction\">Interaction</option>
+        <option value=\"walkthrough\">Walkthrough</option>
+        <option value=\"bonded_pair\">Bonded Pair</option>
+        <option value=\"behavior\">Behavior</option>
+      </select>
+    </label>
+
+    <label>Choose Animal:
+      <select name=\"animals_of_interest\" id=\"animalSelect\">
+        <option value=\"\">Undecided</option>
+      </select>
+    </label>
+
+    <label>Choose Date and Time:
+      <input name=\"start\" type=\"datetime-local\" required>
+    </label>
+
+    <label>Timezone:
+      <input name=\"timezone\" value=\"America/New_York\">
+    </label>
+
+    <label>First Name: <input name=\"first_name\" required></label>
+    <label>Last Name: <input name=\"last_name\" required></label>
+    <label>Email: <input name=\"email\" type=\"email\" required></label>
+    <label>Phone: <input name=\"phone\" required></label>
+
+    <label>Notes (optional):
+      <textarea name=\"notes\"></textarea>
+    </label>
+
+    <button type=\"submit\">Book Appointment</button>
+  </form>
+
+  <div id=\"result\"></div>
+
+  <script>
+    const WEBHOOK = \"YOUR_N8N_WEBHOOK_URL\"; // <— replace with your real one
+
+    // Load fake animal list
+    fetch('listings.json').then(r => r.json()).then(data => {
+      const sel = document.getElementById('animalSelect');
+      data.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = `${a.name} (${a.id})`;
+        opt.textContent = `${a.name} (${a.species}, ${a.age})`;
+        sel.appendChild(opt);
+      });
+    });
+
+    document.getElementById('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const payload = {
+        appointment_type: fd.get('appointment_type'),
+        animals_of_interest: fd.get('animals_of_interest') || 'Undecided',
+        start: new Date(fd.get('start')).toISOString(),
+        timezone: fd.get('timezone'),
+        contact: {
+          first_name: fd.get('first_name'),
+          last_name: fd.get('last_name'),
+          email: fd.get('email'),
+          phone: fd.get('phone')
+        },
+        notes: fd.get('notes')
+      };
+
+      const resDiv = document.getElementById('result');
+      resDiv.innerHTML = 'Submitting...';
+
+      try {
+        const r = await fetch(WEBHOOK, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+        const data = await r.json();
+        if (r.ok && data.valid) {
+          resDiv.innerHTML = `<div class=\"ok\"><b>Confirmed:</b><br>${data.booking_note.replace(/\\n/g, '<br>')}</div>`;
+        } else {
+          const reasons = (data.reasons || ['Please choose another time.']).map(r=>`• ${r}`).join('<br>');
+          resDiv.innerHTML = `<div class=\"err\"><b>Couldn’t book:</b><br>${reasons}</div>`;
+        }
+      } catch (err) {
+        resDiv.innerHTML = `<div class=\"err\">Error contacting server.</div>`;
+      }
+    });
+  </script>
+</body>
+</html>
