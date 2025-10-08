@@ -57,7 +57,7 @@
   <div id="result"></div>
 
   <script>
-    const WEBHOOK = "YOUR_N8N_WEBHOOK_URL"; // <-- replace me
+    const WEBHOOK = "https://lightnuwr.app.n8n.cloud/webhook/booking-demo"; // <-- replace me
 
     // Populate animal dropdown from local JSON
     fetch('listings.json').then(r => r.json()).then(data => {
@@ -113,4 +113,5 @@
     });
   </script>
 </body>
+
 </html>
