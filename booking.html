@@ -61,12 +61,12 @@
   <div id="result"></div>
 
   <!-- SCRIPT SECTION (The Logic) -->
-  <script>
-  // Step 1: Define your n8n webhook URL
-  const WEBHOOK = "https://lightnuwr.app.n8n.cloud/webhook/booking-demo";
+ <script>
+// Step 1: Your n8n PRODUCTION webhook URL (not /webhook-test/)
+const WEBHOOK = "https://lightnuwr.app.n8n.cloud/webhook/booking-demo";
 
- document.addEventListener('DOMContentLoaded', function () {
-  // Hours config
+document.addEventListener('DOMContentLoaded', function () {
+  // Step 2: Hours config (0=Sun, 1=Mon, ... 6=Sat); null = closed
   const HOURS = {
     1: { open: "09:00", close: "17:30" }, // Monday
     2: { open: "10:30", close: "19:00" }, // Tuesday
@@ -74,14 +74,16 @@
     4: { open: "10:30", close: "19:00" }, // Thursday
     5: { open: "10:30", close: "19:00" }, // Friday
     6: { open: "09:00", close: "17:30" }, // Saturday
-    0: null
+    0: null                                // Sunday (closed)
   };
 
+  // Step 3: Grab dropdowns
   const daySel  = document.getElementById('daySelect');
   const timeSel = document.getElementById('timeSelect');
   console.log('daySel:', daySel);
   console.log('timeSel:', timeSel);
 
+  // Step 4: Helpers
   function addMinutes(hhmm, mins) {
     const [h, m] = hhmm.split(":").map(Number);
     const d = new Date();
@@ -104,6 +106,7 @@
     return date.toLocaleDateString(undefined, { weekday:'short', month:'short', day:'numeric' });
   }
 
+  // Step 5: Build Day dropdown (next 10 days, skip Sundays)
   function populateDays() {
     daySel.innerHTML = "";
     const today = new Date();
@@ -119,6 +122,7 @@
     }
   }
 
+  // Step 6: Build Time dropdown for selected day (every 30 mins in open hours)
   function populateTimesForDay(isoDate) {
     timeSel.innerHTML = "";
     const d = new Date(isoDate + "T00:00:00");
@@ -144,18 +148,73 @@
     }
   }
 
-  // Build on load
+  // Step 7: Initialize + change handler
   populateDays();
   populateTimesForDay(daySel.value);
-
-  // Update times when day changes
   daySel.addEventListener('change', function () {
     populateTimesForDay(daySel.value);
+  });
+
+  // Step 8: Submit handler (build payload, POST to n8n, render result)
+  const formEl = document.getElementById('form');
+  console.log('Form element:', formEl); // should NOT be null
+
+  formEl.addEventListener('submit', function (e) {
+    console.log('Submit handler fired'); // should print on click
+    e.preventDefault();
+
+    const resDiv = document.getElementById('result');
+    resDiv.textContent = "Submitting…";
+
+    const fd = new FormData(formEl);
+    const day  = fd.get('day');  // "YYYY-MM-DD"
+    const time = fd.get('time');  // "HH:MM"
+    const local = new Date(day + "T" + time + ":00");
+
+    const payload = {
+      appointment_type: "interaction",
+      animals_of_interest: fd.get('animals_of_interest') || 'Undecided',
+      start: local.toISOString(), // ISO timestamp (UTC)
+      contact: {
+        first_name: fd.get('first_name'),
+        last_name: fd.get('last_name'),
+        email: fd.get('email'),
+        phone: fd.get('phone')
+      },
+      notes: fd.get('notes') || ''
+    };
+
+    console.log('Payload to n8n:', payload);
+
+    fetch(WEBHOOK, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+      console.log('Response from n8n:', data);
+      if (data.valid || data.ok) {
+        resDiv.innerHTML = "<div class='ok'><b>Confirmed:</b><br>" +
+                          (data.booking_note || data.message || "Your request was received!") +
+                          "</div>";
+      } else {
+        const reasons = Array.isArray(data.reasons)
+          ? data.reasons.join("<br>• ")
+          : (data.reasons || "Please choose another time.");
+        resDiv.innerHTML = "<div class='err'><b>Couldn’t book:</b><br>• " + reasons + "</div>";
+      }
+    })
+    .catch(err => {
+      console.error('Fetch error:', err);
+      resDiv.innerHTML = "<div class='err'>Error contacting server.</div>";
     });
   });
-  </script>
+});
+</script>
 
 </body>
 </html>
+
 
 
