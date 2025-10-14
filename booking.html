@@ -171,18 +171,20 @@ document.addEventListener('DOMContentLoaded', function () {
     const time = fd.get('time');  // "HH:MM"
     const local = new Date(day + "T" + time + ":00");
 
-    const payload = {
-      appointment_type: "interaction",
-      animals_of_interest: fd.get('animals_of_interest') || 'Undecided',
-      start: local.toISOString(), // ISO timestamp (UTC)
-      contact: {
-        first_name: fd.get('first_name'),
-        last_name: fd.get('last_name'),
-        email: fd.get('email'),
-        phone: fd.get('phone')
-      },
-      notes: fd.get('notes') || ''
-    };
+    function safeTrim(v){ return (v || '').toString().trim(); }
+
+const payload = {
+  appointment_type: "interaction",
+  animals_of_interest: safeTrim(fd.get('animals_of_interest')) || 'Undecided',
+  start: local.toISOString(),
+  contact: {
+    first_name: safeTrim(fd.get('first_name')),
+    last_name:  safeTrim(fd.get('last_name')),
+    email:      safeTrim(fd.get('email')),
+    phone:      safeTrim(fd.get('phone'))
+  },
+  notes: safeTrim(fd.get('notes'))
+};
 
     console.log('Payload to n8n:', payload);
 
@@ -215,6 +217,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 </body>
 </html>
+
 
 
 
