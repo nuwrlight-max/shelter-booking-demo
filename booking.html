@@ -1,130 +1,202 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>PG County Animal Shelter – Interaction/Walkthrough Booking (Demo)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PG County Animal Shelter Booking</title>
   <style>
-    body { font-family: sans-serif; max-width: 700px; margin: 30px auto; padding: 10px; }
-    form { display: grid; gap: 12px; }
-    input, select, textarea { padding: 8px; border: 1px solid #ccc; border-radius: 5px; }
-    button { padding: 10px; border: none; background: #4CAF50; color: white; border-radius: 5px; cursor: pointer; }
-    .ok { background: #e6ffed; padding: 10px; border: 1px solid #8bc34a; border-radius: 5px; }
-    .err { background: #ffeaea; padding: 10px; border: 1px solid #f44336; border-radius: 5px; }
+    body { font-family: Arial, sans-serif; background:#fafafa; margin:40px; }
+    h2 { color:#333; }
+    form { background:#fff; padding:20px; border-radius:8px; max-width:520px; box-shadow:0 0 8px rgba(0,0,0,0.1); }
+    label { display:block; margin-top:10px; font-weight:600; }
+    input, select, textarea, button { width:100%; margin:8px 0; padding:10px; border-radius:6px; border:1px solid #ccc; }
+    button { background:#2a7be4; color:#fff; font-weight:bold; cursor:pointer; }
+    button:hover { background:#1d5fb2; }
+    .ok { background:#d6f5d6; border-left:4px solid #2e8b57; padding:10px; margin-top:15px; }
+    .err { background:#f5d6d6; border-left:4px solid #b22222; padding:10px; margin-top:15px; }
+    small { color:#666; }
   </style>
 </head>
+
 <body>
-  <h1>Schedule an Interaction or Walkthrough</h1>
-  <p>This demo uses <a href=\"https://24petconnect.com\" target=\"_blank\">24petconnect.com</a> listings for reference.</p>
 
-  <form id=\"form\">
-    <label>Appointment Type:
-      <select name=\"appointment_type\">
-        <option value=\"interaction\">Interaction</option>
-        <option value=\"walkthrough\">Walkthrough</option>
-        <option value=\"bonded_pair\">Bonded Pair</option>
-        <option value=\"behavior\">Behavior</option>
-      </select>
-    </label>
+  <h2>Book an Interaction / Walkthrough</h2>
 
-    <label>Choose Animal:
-      <select name=\"animals_of_interest\" id=\"animalSelect\">
-        <option value=\"\">Undecided</option> 
-        <option value= "Ben - A554331">Ben - A554331</option>
-        <option value= "Jesse - A563781">Jesse - A63781</option>
-      </select>
-    </label>
+  <!-- FORM SECTION  -->
+  <form id="form">
 
-    <label>Choose Date and Time:
-      <label for="daySelect">Choose Day</label>
-      <select id="daySelect" name="day" required></select>
-      <label for="timeSelect">Choose Start Time</label>
-      <select id="timeSelect" name="time" required></select>
-    
+    <label for="first_name">First Name</label>
+    <input name="first_name" id="first_name" required>
 
+    <label for="last_name">Last Name</label>
+    <input name="last_name" id="last_name" required>
 
+    <label for="email">Email</label>
+    <input name="email" id="email" type="email" required>
 
+    <label for="phone">Phone</label>
+    <input name="phone" id="phone" required>
 
+    <label for="animalSelect">Choose Animal</label>
+    <select id="animalSelect" name="animals_of_interest" required>
+      <option value="Ben - A554331">Ben - A554331</option>
+      <option value="Jesse - A563781">Jesse - A563781</option>
+      <option value="Undecided">Undecided</option>
+    </select>
 
-      
-    </label>
+    <label for="daySelect">Choose Day</label>
+    <select id="daySelect" name="day" required></select>
+    <small>We offer appointments Monday–Saturday (closed Sunday).</small>
 
-    <label>Timezone:
-      <input name=\"timezone\" value=\"America/New_York\">
-    </label>
+    <label for="timeSelect">Choose Start Time</label>
+    <select id="timeSelect" name="time" required></select>
+    <small>Times shown match open hours for the selected day.</small>
 
-    <label>First Name: <input name=\"first_name\" required></label>
-    <label>Last Name: <input name=\"last_name\" required></label>
-    <label>Email: <input name=\"email\" type=\"email\" required></label>
-    <label>Phone: <input name=\"phone\" required></label>
+    <label for="notes">Notes</label>
+    <textarea name="notes" id="notes" placeholder="Any additional notes..."></textarea>
 
-    <label>Notes (optional):
-      <textarea name=\"notes\"></textarea>
-    </label>
-
-    <button type=\"submit\">Book Appointment</button>
+    <button type="submit">Book Appointment</button>
   </form>
 
-  <div id=\"result\"></div>
+  <div id="result"></div>
 
+  <!-- SCRIPT SECTION (The Logic) -->
   <script>
-    const WEBHOOK = "https://lightnuwr.app.n8n.cloud/webhook/booking-demo"
+  // Step 1: Define your n8n webhook URL
+  const WEBHOOK = "https://lightnuwr.app.n8n.cloud/webhook/booking-demo";
 
-    // Load fake animal list
-    fetch('listings.json').then(r => r.json()).then(data => {
-      const sel = document.getElementById('animalSelect');
-      data.forEach(a => {
-        const opt = document.createElement('option');
-        opt.value = `${a.name} (${a.id})`;
-        opt.textContent = `${a.name} (${a.species}, ${a.age})`;
-        sel.appendChild(opt);
-      });
-    });
+  // Step 2: Define the shelter's open hours (0 = Sunday, 1 = Monday ... 6 = Saturday)
+  const HOURS = {
+    1: { open: "09:00", close: "17:30" }, // Monday
+    2: { open: "10:30", close: "19:00" }, // Tuesday
+    3: { open: "10:30", close: "19:00" }, // Wednesday
+    4: { open: "10:30", close: "19:00" }, // Thursday
+    5: { open: "10:30", close: "19:00" }, // Friday
+    6: { open: "09:00", close: "17:30" }, // Saturday
+    0: null                                // Sunday (closed)
+  };
 
-    document.getElementById('form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const fd = new FormData(e.target);
-      const payload = {
-        appointment_type: fd.get('appointment_type'),
-        animals_of_interest: fd.get('animals_of_interest') || 'Undecided',
-        start: new Date(fd.get('start')).toISOString(),
-        timezone: fd.get('timezone'),
-        contact: {
-          first_name: fd.get('first_name'),
-          last_name: fd.get('last_name'),
-          email: fd.get('email'),
-          phone: fd.get('phone')
-        },
-        notes: fd.get('notes')
-      };
+  // Step 3: Helper functions for handling time and date calculations
+  function addMinutes(hhmm, mins) {
+    const [h, m] = hhmm.split(":").map(Number);
+    const d = new Date();
+    d.setHours(h, m, 0, 0);
+    d.setMinutes(d.getMinutes() + mins);
+    return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+  }
 
-      const resDiv = document.getElementById('result');
-      resDiv.innerHTML = 'Submitting...';
+  function timeLT(a, b) {
+    const [ah, am] = a.split(":").map(Number);
+    const [bh, bm] = b.split(":").map(Number);
+    return ah === bh ? am < bm : ah < bh;
+  }
 
-      try {
-        const r = await fetch(WEBHOOK, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(payload)
-        });
-        const data = await r.json();
-        if (r.ok && data.valid) {
-          resDiv.innerHTML = `<div class=\"ok\"><b>Confirmed:</b><br>${data.booking_note.replace(/\\n/g, '<br>')}</div>`;
-        } else {
-          const reasons = (data.reasons || ['Please choose another time.']).map(r=>`• ${r}`).join('<br>');
-          resDiv.innerHTML = `<div class=\"err\"><b>Couldn’t book:</b><br>${reasons}</div>`;
-        }
-      } catch (err) {
-        resDiv.innerHTML = `<div class=\"err\">Error contacting server.</div>`;
+  function fmtDateISO(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`; // YYYY-MM-DD
+  }
+
+  function fmtDateLabel(date) {
+    return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  }
+
+  // Step 4: Build the Day and Time dropdowns
+  const daySel  = document.getElementById('daySelect');
+  const timeSel = document.getElementById('timeSelect');
+
+  function populateDays() {
+    daySel.innerHTML = "";
+    const today = new Date();
+    for (let i = 0; i < 10; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      const dow = d.getDay(); // 0=Sun
+      if (!HOURS[dow]) continue; // skip Sunday
+      const opt = document.createElement('option');
+      opt.value = fmtDateISO(d);    // e.g., 2025-10-16
+      opt.textContent = fmtDateLabel(d); // e.g., Thu, Oct 16
+      daySel.appendChild(opt);
+    }
+  }
+
+  function populateTimesForDay(isoDate) {
+    timeSel.innerHTML = "";
+    const d = new Date(isoDate + "T00:00:00");
+    const dow = d.getDay();
+    const hours = HOURS[dow];
+    if (!hours) return;
+
+    let t = hours.open;
+    const step = 30; // 30-minute slots
+    const last = hours.close;
+    while (timeLT(t, last)) {
+      const [h, m] = t.split(":").map(Number);
+      const labelDate = new Date();
+      labelDate.setHours(h, m, 0, 0);
+      const label = labelDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      const opt = document.createElement('option');
+      opt.value = t;
+      opt.textContent = label;
+      timeSel.appendChild(opt);
+      t = addMinutes(t, step);
+    }
+  }
+
+  // initialize dropdowns
+  populateDays();
+  populateTimesForDay(daySel.value);
+  daySel.addEventListener('change', () => populateTimesForDay(daySel.value));
+
+  // Step 5: Handle form submission and send JSON data to n8n
+  document.getElementById('form').addEventListener('submit', function(e){
+    e.preventDefault();
+    const resDiv = document.getElementById("result");
+    resDiv.textContent = "Submitting…";
+
+    const fd = new FormData(e.target);
+    const day = fd.get('day');  // e.g. "2025-10-18"
+    const time = fd.get('time'); // e.g. "14:30"
+    const local = new Date(day + "T" + time + ":00"); // local date+time
+
+    const payload = {
+      appointment_type: "interaction",
+      animals_of_interest: fd.get('animals_of_interest') || 'Undecided',
+      start: local.toISOString(), // ISO timestamp
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York",
+      contact: {
+        first_name: fd.get('first_name'),
+        last_name: fd.get('last_name'),
+        email: fd.get('email'),
+        phone: fd.get('phone')
+      },
+      notes: fd.get('notes') || ''
+    };
+
+    // send to n8n webhook
+    fetch(WEBHOOK, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.valid || data.ok) {
+        resDiv.innerHTML = "<div class='ok'><b>Confirmed:</b><br>" +
+                          (data.booking_note || data.message || "Your request was received!") +
+                          "</div>";
+      } else {
+        const reasons = Array.isArray(data.reasons) ? data.reasons.join("<br>• ") : (data.reasons || "Please choose another time.");
+        resDiv.innerHTML = "<div class='err'><b>Couldn’t book:</b><br>• " + reasons + "</div>";
       }
+    })
+    .catch(err => {
+      console.error(err);
+      resDiv.innerHTML = "<div class='err'>Error contacting server.</div>";
     });
+  });
   </script>
+
 </body>
 </html>
-
-
-
-
-
-
-
