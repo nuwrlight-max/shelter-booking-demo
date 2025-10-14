@@ -65,7 +65,8 @@
   // Step 1: Define your n8n webhook URL
   const WEBHOOK = "https://lightnuwr.app.n8n.cloud/webhook/booking-demo";
 
-  // Step 2: Define the shelter's open hours (0 = Sunday, 1 = Monday ... 6 = Saturday)
+ document.addEventListener('DOMContentLoaded', function () {
+  // Hours config
   const HOURS = {
     1: { open: "09:00", close: "17:30" }, // Monday
     2: { open: "10:30", close: "19:00" }, // Tuesday
@@ -73,38 +74,35 @@
     4: { open: "10:30", close: "19:00" }, // Thursday
     5: { open: "10:30", close: "19:00" }, // Friday
     6: { open: "09:00", close: "17:30" }, // Saturday
-    0: null                                // Sunday (closed)
+    0: null
   };
 
-  // Step 3: Helper functions for handling time and date calculations
+  const daySel  = document.getElementById('daySelect');
+  const timeSel = document.getElementById('timeSelect');
+  console.log('daySel:', daySel);
+  console.log('timeSel:', timeSel);
+
   function addMinutes(hhmm, mins) {
     const [h, m] = hhmm.split(":").map(Number);
     const d = new Date();
     d.setHours(h, m, 0, 0);
     d.setMinutes(d.getMinutes() + mins);
-    return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+    return String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0");
   }
-
   function timeLT(a, b) {
     const [ah, am] = a.split(":").map(Number);
     const [bh, bm] = b.split(":").map(Number);
     return ah === bh ? am < bm : ah < bh;
   }
-
   function fmtDateISO(date) {
     const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, "0");
-    const d = String(date.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`; // YYYY-MM-DD
+    const m = String(date.getMonth()+1).padStart(2,"0");
+    const d = String(date.getDate()).padStart(2,"0");
+    return `${y}-${m}-${d}`;
   }
-
   function fmtDateLabel(date) {
-    return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    return date.toLocaleDateString(undefined, { weekday:'short', month:'short', day:'numeric' });
   }
-
-  // Step 4: Build the Day and Time dropdowns
-  const daySel  = document.getElementById('daySelect');
-  const timeSel = document.getElementById('timeSelect');
 
   function populateDays() {
     daySel.innerHTML = "";
@@ -112,11 +110,11 @@
     for (let i = 0; i < 10; i++) {
       const d = new Date(today);
       d.setDate(today.getDate() + i);
-      const dow = d.getDay(); // 0=Sun
+      const dow = d.getDay(); // 0..6
       if (!HOURS[dow]) continue; // skip Sunday
       const opt = document.createElement('option');
-      opt.value = fmtDateISO(d);    // e.g., 2025-10-16
-      opt.textContent = fmtDateLabel(d); // e.g., Thu, Oct 16
+      opt.value = fmtDateISO(d);          // "YYYY-MM-DD"
+      opt.textContent = fmtDateLabel(d);  // "Tue, Oct 14"
       daySel.appendChild(opt);
     }
   }
@@ -129,74 +127,34 @@
     if (!hours) return;
 
     let t = hours.open;
-    const step = 30; // 30-minute slots
+    const step = 30;        // minutes
     const last = hours.close;
     while (timeLT(t, last)) {
       const [h, m] = t.split(":").map(Number);
       const labelDate = new Date();
       labelDate.setHours(h, m, 0, 0);
-      const label = labelDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      const label = labelDate.toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
+
       const opt = document.createElement('option');
-      opt.value = t;
+      opt.value = t;        // "HH:MM"
       opt.textContent = label;
       timeSel.appendChild(opt);
+
       t = addMinutes(t, step);
     }
   }
 
-  // initialize dropdowns
+  // Build on load
   populateDays();
   populateTimesForDay(daySel.value);
-  daySel.addEventListener('change', () => populateTimesForDay(daySel.value));
 
-  // Step 5: Handle form submission and send JSON data to n8n
-  document.getElementById('form').addEventListener('submit', function(e){
-    e.preventDefault();
-    const resDiv = document.getElementById("result");
-    resDiv.textContent = "Submitting…";
-
-    const fd = new FormData(e.target);
-    const day = fd.get('day');  // e.g. "2025-10-18"
-    const time = fd.get('time'); // e.g. "14:30"
-    const local = new Date(day + "T" + time + ":00"); // local date+time
-
-    const payload = {
-      appointment_type: "interaction",
-      animals_of_interest: fd.get('animals_of_interest') || 'Undecided',
-      start: local.toISOString(), // ISO timestamp
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York",
-      contact: {
-        first_name: fd.get('first_name'),
-        last_name: fd.get('last_name'),
-        email: fd.get('email'),
-        phone: fd.get('phone')
-      },
-      notes: fd.get('notes') || ''
-    };
-
-    // send to n8n webhook
-    fetch(WEBHOOK, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    })
-    .then(r => r.json())
-    .then(data => {
-      if (data.valid || data.ok) {
-        resDiv.innerHTML = "<div class='ok'><b>Confirmed:</b><br>" +
-                          (data.booking_note || data.message || "Your request was received!") +
-                          "</div>";
-      } else {
-        const reasons = Array.isArray(data.reasons) ? data.reasons.join("<br>• ") : (data.reasons || "Please choose another time.");
-        resDiv.innerHTML = "<div class='err'><b>Couldn’t book:</b><br>• " + reasons + "</div>";
-      }
-    })
-    .catch(err => {
-      console.error(err);
-      resDiv.innerHTML = "<div class='err'>Error contacting server.</div>";
+  // Update times when day changes
+  daySel.addEventListener('change', function () {
+    populateTimesForDay(daySel.value);
     });
   });
   </script>
 
 </body>
 </html>
+
