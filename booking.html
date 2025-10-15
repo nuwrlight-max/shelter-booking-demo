@@ -126,7 +126,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // Step 6: Build Time dropdown for selected day (every 30 mins in open hours)
+  // Step 6: Build Time dropdown for selected day ( 30-min steps, must finish by closing)
   function populateTimesForDay(isoDate) {
     timeSel.innerHTML = "";
     const d = new Date(isoDate + "T00:00:00");
@@ -134,9 +134,18 @@ document.addEventListener('DOMContentLoaded', function () {
     const hours = HOURS[dow];
     if (!hours) return;
 
-    let t = hours.open;
-    const step = 30;        // minutes
-    const last = hours.close;
+    let t = hours.open;      // current candidate start "HH:MM"
+    const step = 30;        // 30-minute increments
+    const last = hours.close;   //closing "HH:MM"
+      // helper: add minutes to an "HH:MM" string
+ function addMinutesHM(hhmm, mins) {
+   const [h, m] = hhmm.split(":").map(Number);
+   const tmp = new Date();
+   tmp.setHours(h, m, 0, 0);
+   tmp.setMinutes(tmp.getMinutes() + mins);
+   return String(tmp.getHours()).padStart(2, "0") + ":" + String(tmp.getMinutes()).padStart(2, "0");
+ }
+    const lastStart = addMinutesHM(last, -TOTAL_MINUTES);
     while (timeLT(t, last)) {
       const [h, m] = t.split(":").map(Number);
       const labelDate = new Date();
@@ -221,6 +230,7 @@ const payload = {
 
 </body>
 </html>
+
 
 
 
