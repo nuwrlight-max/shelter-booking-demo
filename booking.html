@@ -76,6 +76,10 @@ document.addEventListener('DOMContentLoaded', function () {
     6: { open: "09:00", close: "17:30" }, // Saturday
     0: null                                // Sunday (closed)
   };
+  // DEMO total appointment length (minutes)
+  const SLOT_MINUTES = 35;
+  const BUFFER_MINUTES = 0;
+  const TOTAL_MINUTES = SLOT_MINUTES + BUFFER_MINUTES;
 
   // Step 3: Grab dropdowns
   const daySel  = document.getElementById('daySelect');
@@ -217,6 +221,7 @@ const payload = {
 
 </body>
 </html>
+
 
 
 
