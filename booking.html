@@ -206,20 +206,29 @@ const payload = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     })
-    .then(r => r.json())
-    .then(data => {
-      console.log('Response from n8n:', data);
-      if (data.valid || data.ok) {
-        resDiv.innerHTML = "<div class='ok'><b>Confirmed:</b><br>" +
-                          (data.booking_note || data.message || "Your request was received!") +
-                          "</div>";
-      } else {
-        const reasons = Array.isArray(data.reasons)
-          ? data.reasons.join("<br>• ")
-          : (data.reasons || "Please choose another time.");
-        resDiv.innerHTML = "<div class='err'><b>Couldn’t book:</b><br>• " + reasons + "</div>";
-      }
-    })
+    .then(async r => {
+  // Try to handle both JSON and plain-text responses
+  const text = await r.text();
+  let data;
+  try { data = JSON.parse(text); }
+  catch { data = { ok: r.ok, raw: text }; }
+
+  console.log("Response from n8n:", data);
+
+  const resDiv = document.getElementById("result");
+  const isSuccess = (data && (data.valid === true || data.ok === true));
+
+  if (isSuccess) {
+    resDiv.innerHTML = "<div class='ok'><b>Confirmed:</b><br>" +
+      (data.booking_note || data.message || "Your request was received!") +
+      "</div>";
+  } else {
+    const reasons = Array.isArray(data?.reasons)
+      ? data.reasons.join("<br>• ")
+      : (data?.reasons || "Please choose another time.");
+    resDiv.innerHTML = "<div class='err'><b>Couldn’t book:</b><br>• " + reasons + "</div>";
+  }
+})
     .catch(err => {
       console.error('Fetch error:', err);
       resDiv.innerHTML = "<div class='err'>Error contacting server.</div>";
@@ -230,6 +239,7 @@ const payload = {
 
 </body>
 </html>
+
 
 
 
