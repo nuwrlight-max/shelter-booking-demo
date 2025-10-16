@@ -190,6 +190,8 @@ const payload = {
   appointment_type: "interaction",
   animals_of_interest: safeTrim(fd.get('animals_of_interest')) || 'Undecided',
   start: local.toISOString(),
+  day: day,      // the selected appointment date (YYYY-MM-DD)
+  time: time,   //  the selected appointment start time (HH:MM)
   contact: {
     first_name: safeTrim(fd.get('first_name')),
     last_name:  safeTrim(fd.get('last_name')),
@@ -239,6 +241,7 @@ const payload = {
 
 </body>
 </html>
+
 
 
 
