@@ -182,14 +182,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const fd = new FormData(formEl);
     const day  = fd.get('day');  // "YYYY-MM-DD"
     const time = fd.get('time');  // "HH:MM"
-    const local = new Date(day + "T" + time + ":00");
-
     function safeTrim(v){ return (v || '').toString().trim(); }
 
 const payload = {
   appointment_type: "interaction",
   animals_of_interest: safeTrim(fd.get('animals_of_interest')) || 'Undecided',
-  start: local.toISOString(),
+  start: day + "T" + time + ":00",
   day: day,      // the selected appointment date (YYYY-MM-DD)
   time: time,   //  the selected appointment start time (HH:MM)
   contact: {
@@ -241,6 +239,7 @@ const payload = {
 
 </body>
 </html>
+
 
 
 
